@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/1397/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics
+END
+AltimeterInstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 101
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/AltimeterInstrumentControl.cs
+END
+AirSpeedIndicatorInstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/!svn/ver/1397/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/AirSpeedIndicatorInstrumentControl.cs
+END
+AvionicsInstrumentsControlsRessources.resx
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/AvionicsInstrumentsControlsRessources.resx
+END
+HeadingIndicatorInstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/HeadingIndicatorInstrumentControl.cs
+END
+TurnCoordinatorInstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 107
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/TurnCoordinatorInstrumentControl.cs
+END
+AvionicsInstrumentsControlsRessources.Designer.cs
+K 25
+svn:wc:ra_dav:version-url
+V 121
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/AvionicsInstrumentsControlsRessources.Designer.cs
+END
+InstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/InstrumentControl.cs
+END
+AttitudeIndicatorInstrumentControl.cs
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/!svn/ver/1338/branches/ArduPilot_2_7/X-Plane/ArdupilotSim/Avionics/AttitudeIndicatorInstrumentControl.cs
+END

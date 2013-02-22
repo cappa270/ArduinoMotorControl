@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/!svn/ver/1503/branches/ArduPilot_2_7/Waypoint_writer_27
+END
+mission_example.h
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/!svn/ver/1501/branches/ArduPilot_2_7/Waypoint_writer_27/mission_example.h
+END
+defines.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/1347/branches/ArduPilot_2_7/Waypoint_writer_27/defines.h
+END
+mission_sfo_egg_drop.h
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/!svn/ver/1359/branches/ArduPilot_2_7/Waypoint_writer_27/mission_sfo_egg_drop.h
+END
+Waypoint_writer_27.pde
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/!svn/ver/1502/branches/ArduPilot_2_7/Waypoint_writer_27/Waypoint_writer_27.pde
+END
+mission_sfo_landing.h
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/!svn/ver/1357/branches/ArduPilot_2_7/Waypoint_writer_27/mission_sfo_landing.h
+END
+mission_sfo.h
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/!svn/ver/1347/branches/ArduPilot_2_7/Waypoint_writer_27/mission_sfo.h
+END
+mission_concord.h
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/!svn/ver/1503/branches/ArduPilot_2_7/Waypoint_writer_27/mission_concord.h
+END

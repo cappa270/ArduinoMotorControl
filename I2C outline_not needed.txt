@@ -1,0 +1,21 @@
+master send message
+Slave receive message
+
+slave check message content
+	if receive 'B'
+		turn on BLUE LED1
+		send back blue
+	else if receive 'G'
+		turn on GREEN LED1
+		send back green
+	else
+		turn on RED LED1
+		send back invalid
+		
+Master recieve back message
+	if receive blue
+		turn on BLUE LED2
+	else if receive green
+		turn on GREEN LED2
+	else
+		turn on RED LED2

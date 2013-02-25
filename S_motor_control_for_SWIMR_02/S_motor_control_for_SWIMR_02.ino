@@ -182,6 +182,7 @@ void motor_driver(boolean& temp_stopped, boolean& temp_armed) {
     // current role must be calculated to determine how much motors
     // 4 and 5 must compensate
     current_roll = parsed_IMU_data[0];
+    current_pitch = parsed_IMU_data[1];
     
     // INSERT STATEMENT HERE THAT ADDS USER INPUT VARIABLE
     // AND ADJUSTS THE ROLL VALUES APPROPRIATELY
@@ -190,13 +191,16 @@ void motor_driver(boolean& temp_stopped, boolean& temp_armed) {
     // roll must be converted to an integer in order to be used in
     // a map command
     int current_roll_integer = int(current_roll);
+    int current_pitch_integer = int(current_pitch);
     
     // for safety and because unpredictable inputs are always a 
     // factor the roll integer is constrained to a usable range
     current_roll_integer = constrain(current_roll_integer, -180, 180);
+    current_pitch_integer = constrain(current_pitch_integer, -180, 180);
     
     // roll values get mapped to usable ranges for the Servos
     motor1_speed = map(current_roll_integer, -180, 180, 1300, 1700);
+    motor2_speed = map(current_roll_integer, 180, -180, 1300, 1700);
     
     Serial.print("Servo Speeds: ");
     Serial.print(motor1_speed);

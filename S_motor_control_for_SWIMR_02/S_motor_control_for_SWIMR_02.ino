@@ -169,6 +169,15 @@ void motor_driver(boolean& temp_stopped, boolean& temp_armed) {
   float current_roll;
   float current_pitch;
   float current_yaw;
+  char commands[6];
+  
+  // temp calibration variables
+  int roll_max = 200;
+  int pitch_max = 200;
+  int yaw_max = 200;
+  int x_max = 200;
+  int y_max = 500;
+  int z_max = 200;
   
   if( Serial.available()) {
     char command = Serial.read();
@@ -179,43 +188,78 @@ void motor_driver(boolean& temp_stopped, boolean& temp_armed) {
     }
   }
   if(temp_armed && !temp_stopped) {
-    // current role must be calculated to determine how much motors
-    // 4 and 5 must compensate
-    current_roll = parsed_IMU_data[0];
-    current_pitch = parsed_IMU_data[1];
-    
-    // INSERT STATEMENT HERE THAT ADDS USER INPUT VARIABLE
-    // AND ADJUSTS THE ROLL VALUES APPROPRIATELY
-    
-
-    // roll must be converted to an integer in order to be used in
-    // a map command
-    int current_roll_integer = int(current_roll);
-    int current_pitch_integer = int(current_pitch);
-    
-    // for safety and because unpredictable inputs are always a 
-    // factor the roll integer is constrained to a usable range
-    current_roll_integer = constrain(current_roll_integer, -180, 180);
-    current_pitch_integer = constrain(current_pitch_integer, -180, 180);
-    
-    // roll values get mapped to usable ranges for the Servos
-    motor1_speed = map(current_roll_integer, -180, 180, 1300, 1700);
-    motor2_speed = map(current_roll_integer, 180, -180, 1300, 1700);
-    
-    Serial.print("Servo Speeds: ");
-    Serial.print(motor1_speed);
-    Serial.print(" , ");
-    Serial.println(motor2_speed);
-    
-    // if statement used to create a dead zone so that the sub
-    // doesn't continuously bounce back and forth
-    if( motor1_speed > 1490 && motor1_speed < 1510) {
-      motor1.writeMicroseconds(1500);
-      motor2.writeMicroseconds(1500);
-    } else {
+    if( Serial.available()) {
+      // Order of commands is roll, pitch, yaw, x - +forward/-reverse, y - +left/-right, z - +up/-down
+      Serial.readBytes(commands, 6);
+      Serial.println(commands[3]);
+      delay(500);
+      
+      //
+      int roll_speed = map(commands[0], 0, 255, -roll_max, roll_max);
+      //
+      int pitch_speed = map(commands[1], 0, 255, -pitch_max, pitch_max);
+      //
+      int yaw_speed = map(commands[2], 0, 255, -yaw_max, yaw_max);
+      // 0 is full reverse, 255 is full forward
+      int x_speed = map(commands[3], 0, 255, -x_max, x_max);
+      // 0 is full right, 255 is full left
+      int y_speed = map(commands[4], 0, 255, -y_max, y_max);
+      //
+      int z_speed = map(commands[5], 0, 255, -z_max, z_max);
+      
+      motor1_speed = 1500 + x_speed - yaw_speed;
+      motor2_speed = 1500 + x_speed + yaw_speed;
+      motor3_speed = 1500 + y_speed;
+      motor4_speed = 1500 ;
+      motor5_speed = 1500 ;
+      motor6_speed = 1500 ;
+      
       motor1.writeMicroseconds(motor1_speed);
       motor2.writeMicroseconds(motor2_speed);
+      motor3.writeMicroseconds(motor3_speed);
+      motor4.writeMicroseconds(motor4_speed);
+      motor5.writeMicroseconds(motor5_speed);
+      motor6.writeMicroseconds(motor6_speed);
+      
     }
+    
+//    // current role must be calculated to determine how much motors
+//    // 4 and 5 must compensate
+//    current_roll = parsed_IMU_data[0];
+//    current_pitch = parsed_IMU_data[1];
+//    
+//    // INSERT STATEMENT HERE THAT ADDS USER INPUT VARIABLE
+//    // AND ADJUSTS THE ROLL VALUES APPROPRIATELY
+//    
+//
+//    // roll must be converted to an integer in order to be used in
+//    // a map command
+//    int current_roll_integer = int(current_roll);
+//    int current_pitch_integer = int(current_pitch);
+//    
+//    // for safety and because unpredictable inputs are always a 
+//    // factor the roll integer is constrained to a usable range
+//    current_roll_integer = constrain(current_roll_integer, -180, 180);
+//    current_pitch_integer = constrain(current_pitch_integer, -180, 180);
+//    
+//    // roll values get mapped to usable ranges for the Servos
+//    motor1_speed = map(current_roll_integer, -180, 180, 1300, 1700);
+//    motor2_speed = map(current_roll_integer, 180, -180, 1300, 1700);
+//    
+//    Serial.print("Servo Speeds: ");
+//    Serial.print(motor1_speed);
+//    Serial.print(" , ");
+//    Serial.println(motor2_speed);
+//    
+//    // if statement used to create a dead zone so that the sub
+//    // doesn't continuously bounce back and forth
+//    if( motor1_speed > 1490 && motor1_speed < 1510) {
+//      motor1.writeMicroseconds(1500);
+//      motor2.writeMicroseconds(1500);
+//    } else {
+//      motor1.writeMicroseconds(motor1_speed);
+//      motor2.writeMicroseconds(motor2_speed);
+//    }
   }
 }
 /****************************************************************

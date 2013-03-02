@@ -87,7 +87,7 @@ void get_IMU_data() {
   // The if statement provides a condition for running the conversion. We
   // only want to run the conversion every half second in order to not be
   // swtiching the motor speeds constantly
-  if( string_complete == true) {
+  if( IMU_input_string.length()) > 0) {
       // Next 6 statements are used to mark indeces of the delimiter characters
       int colon_1 = IMU_input_string.indexOf(':');
       int comma_1 = IMU_input_string.indexOf(',');
@@ -96,11 +96,10 @@ void get_IMU_data() {
       int comma_2 = IMU_input_string.indexOf(',',comma_1+1);
       
       int colon_3 = IMU_input_string.indexOf(':',colon_2 + 1);
-      int star = IMU_input_string.indexOf('*');
       
       String roll_string = IMU_input_string.substring(colon_1+1,comma_1);
       String pitch_string = IMU_input_string.substring(colon_2+1,comma_2);
-      String yaw_string = IMU_input_string.substring(colon_3+1,star);
+      String yaw_string = IMU_input_string.substring(colon_3+1,IMU_input_string.length()-1);
       
       // Conversion from strings to floating point numbers
       parsed_IMU_data[0] = roll_string.toFloat();
@@ -108,7 +107,6 @@ void get_IMU_data() {
       parsed_IMU_data[2] = yaw_string.toFloat();
       
       IMU_input_string = "";
-      string_complete = false;
       ready_for_data = true;
       
       #if DEBUGGING == 1
@@ -304,20 +302,15 @@ void Stop() {
   Used to implement polling between the MEGA and the IMU
 ****************************************************************/
 void serialEvent1() {
-  if( ready_for_data == true) {
+  if( IMU_input_string.length() == 0) {
     if( Serial1.available()) {
-      char first_char;
+      char in_char;
       do {
-        first_char = Serial1.read();
-      } while( first_char != '!');
-      while( first_char == '!' && first_char != '*') {
-        char in_char = Serial1.read();
+        in_char = Serial1.read();
+      } while( in_char != '!');
+      while( in_char == '!' || in_char != '*') {
+        in_char = Serial1.read();
         IMU_input_string += in_char;
-        if (in_char == '*') {
-          string_complete = true;
-          ready_for_data = false;
-          first_char = '*';
-        }
       }
     }
   }

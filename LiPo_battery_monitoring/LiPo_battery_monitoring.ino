@@ -20,7 +20,7 @@ Serial.print(check_battery_voltage(10.5));
 delay(500);
 }
 
-boolean check_battery_voltage(float threashold){
+boolean check_battery_voltage(float threshold){
   /***************
 This function requires voltage dividors! 
 
@@ -40,20 +40,20 @@ Referring to the battery monitoring pins comming out of a standard LiPo battery:
   
   
   // read the input on analog pin 0:
-  int cell1raw = analogRead(A0);
-  int cell2raw = analogRead(A1);
-  int cell3raw = analogRead(A2);
+  int cell_1_raw = analogRead(A0);
+  int cell_2_raw = analogRead(A1);
+  int cell_3_raw = analogRead(A2);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float cell1voltage = (cell1raw / 1023.0 ) * 5.0;
-  float cell2voltage = (cell2raw / 1023.0 ) * 5.0;
-  float cell3voltage = (cell3raw / 1023.0 ) * 5.0;
-  float totalvoltage = cell1voltage + cell2voltage + cell3voltage;
+  float cell_1_voltage = (cell_1_raw / 1023.0 ) * 5.0;
+  float cell_2_voltage = (cell_2_raw / 1023.0 ) * 5.0;
+  float cell_3_voltage = (cell_3_raw / 1023.0 ) * 5.0;
+  float total_voltage = cell_1_voltage + cell_2_voltage + cell_3_voltage;
   // print out the value you read:
  
 // Serial.print("Cell 1: "); Serial.print(cell1voltage); 
 // Serial.print("  Cell 2: "); Serial.print(cell2voltage); 
 // Serial.print("  Cell 3: "); Serial.print(cell3voltage);
 // Serial.print(" Total Voltage: "); Serial.print(totalvoltage); Serial.print('\n');
- return totalvoltage <= threashold;
+ return total_voltage <= threshold;
 }

@@ -12,6 +12,8 @@
 
 float parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
+byte commands[7] = {0,128,128,128,128,128,128};
+float danger_threshold = 10.8;
 
 // motor pin objects
 #define motor1_pin 2
@@ -69,18 +71,20 @@ void setup()
       Serial.println("Motor pins not attached"); 
     }
   #endif
+  ESCArm();
 }
 
 void loop()
 {
+  check_battery_voltage(danger_threshold);
   while( millis()- last_time > 300)
   {
     last_time = millis();
     get_IMU_data();
-    get_new_commands();
     motor_driver( armed);
     Serial1.flush();
   }
+  //Serial.print('?');
 }
 
 /*********************************************************************
@@ -177,7 +181,6 @@ void motor_driver( boolean& temp_armed)
   float current_roll;
   float current_pitch;
   float current_yaw;
-  char commands[6];
   int max_user_input = 255;
   int min_user_input = 0;
   
@@ -189,53 +192,35 @@ void motor_driver( boolean& temp_armed)
   int y_max = 500;
   int z_max = 200;
   
-  if( Serial.available())
-  {
-    char command = Serial.read();
-    if( (command == 'A' || command == 'a') && !temp_armed)
-    {
-      ESCArm();
-    } else if( command == 'S' || command == 's') {
-      Stop();
-    }
-  }
   if( temp_armed)
-  {
-    if( Serial.available())
-    {
-      // Order of commands is roll, pitch, yaw, x - +forward/-reverse, y - +left/-right, z - +up/-down
-      Serial.readBytes(commands, 6);
-      Serial.println(commands[3]);
-      delay(500);
+  {     
+    // ADD DESCRIPTORS ABOVE EACH MOTOR INDICATING WHICH DIRECTION EACH MAX VALUES DRIVES
+    int roll_speed = map(int(commands[1]), min_user_input, max_user_input, -roll_max, roll_max);
+    //
+    int pitch_speed = map(int(commands[2]), min_user_input, max_user_input, -pitch_max, pitch_max);
+    //
+    int yaw_speed = map(int(commands[3]), min_user_input, max_user_input, -yaw_max, yaw_max);
+    // 
+    int x_speed = map(int(commands[4]), min_user_input, max_user_input, -x_max, x_max);
+    // 
+    int y_speed = map(int(commands[5]), min_user_input, max_user_input, -y_max, y_max);
+    //
+    int z_speed = map(int(commands[6]), min_user_input, max_user_input, -z_max, z_max);
+    
+    motor1_speed = 1500 + x_speed - yaw_speed;
+    motor2_speed = 1500 + x_speed + yaw_speed;
+    motor3_speed = 1500 + y_speed;
+    motor4_speed = 1500 + (0.5 * pitch_speed) + z_speed;
+    motor5_speed = 1500 + (0.5 * pitch_speed) + z_speed;
+    motor6_speed = 1500 - pitch_speed + z_speed;
+    
+    motor1.writeMicroseconds(motor1_speed);
+    motor2.writeMicroseconds(motor2_speed);
+    motor3.writeMicroseconds(motor3_speed);
+    motor4.writeMicroseconds(motor4_speed);
+    motor5.writeMicroseconds(motor5_speed);
+    motor6.writeMicroseconds(motor6_speed);
       
-      //
-      int roll_speed = map(commands[0], min_user_input, max_user_input, -roll_max, roll_max);
-      //
-      int pitch_speed = map(commands[1], min_user_input, max_user_input, -pitch_max, pitch_max);
-      //
-      int yaw_speed = map(commands[2], min_user_input, max_user_input, -yaw_max, yaw_max);
-      // 0 is full reverse, 255 is full forward
-      int x_speed = map(commands[3], min_user_input, max_user_input, -x_max, x_max);
-      // 0 is full right, 255 is full left
-      int y_speed = map(commands[4], min_user_input, max_user_input, -y_max, y_max);
-      //
-      int z_speed = map(commands[5], min_user_input, max_user_input, -z_max, z_max);
-      
-      motor1_speed = 1500 + x_speed - yaw_speed;
-      motor2_speed = 1500 + x_speed + yaw_speed;
-      motor3_speed = 1500 + y_speed;
-      motor4_speed = 1500 ;
-      motor5_speed = 1500 ;
-      motor6_speed = 1500 ;
-      
-      motor1.writeMicroseconds(motor1_speed);
-      motor2.writeMicroseconds(motor2_speed);
-      motor3.writeMicroseconds(motor3_speed);
-      motor4.writeMicroseconds(motor4_speed);
-      motor5.writeMicroseconds(motor5_speed);
-      motor6.writeMicroseconds(motor6_speed);
-      
-    }
     
 //    // current role must be calculated to determine how much motors
 //    // 4 and 5 must compensate
@@ -358,8 +343,60 @@ void serialEvent1()
 ****************************************************************/
 void serialEvent()
 {
-  
+  int length = Serial.read();
+  for( int i = 0; i < length; i++)
+  {
+    commands[i] = Serial.read();
+  }
 }
 /****************************************************************
   End Serial Event Module
+****************************************************************/
+
+/****************************************************************
+  Battery Voltage Monitoring Module
+  Used to ensure the battery does not fall below a damaging
+  charge level
+  INPUT: Charge threshold to check against
+  OUTPUT: Boolean that if true battery is in danger
+****************************************************************/
+boolean check_battery_voltage(float threshold){
+  /***************
+This function requires voltage dividers! 
+
+Make sure that the threashold is a float!!!
+
+This function requires A0,A1,A2
+
+
+Referring to the battery monitoring pins comming out of a standard LiPo battery:
+  The voltage on the red wire needs to be divided by 3 before connecting to analog pin
+  The voltage on the blue wire need to be divided in half before connecting to analog pin
+  The voltage on the yellow wire can be read directly by the arduino
+  The Black wire is ground
+
+  It does not matter which color goes to A0,A1,A2
+  ****************/
+  
+  
+  // read the input on analog pin 0:
+  int cell_1_raw = analogRead(A0);
+  int cell_2_raw = analogRead(A1);
+  int cell_3_raw = analogRead(A2);
+  
+  // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
+  float cell_1_voltage = (cell_1_raw / 1023.0 ) * 5.0;
+  float cell_2_voltage = (cell_2_raw / 1023.0 ) * 5.0;
+  float cell_3_voltage = (cell_3_raw / 1023.0 ) * 5.0;
+  float total_voltage = cell_1_voltage + cell_2_voltage + cell_3_voltage;
+  // print out the value you read:
+ 
+// Serial.print("Cell 1: "); Serial.print(cell1voltage); 
+// Serial.print("  Cell 2: "); Serial.print(cell2voltage); 
+// Serial.print("  Cell 3: "); Serial.print(cell3voltage);
+// Serial.print(" Total Voltage: "); Serial.print(totalvoltage); Serial.print('\n');
+ return total_voltage <= threshold;
+}
+/****************************************************************
+  End Battery Checking Module
 ****************************************************************/

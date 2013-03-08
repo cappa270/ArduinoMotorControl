@@ -4,7 +4,7 @@ void printdata(void)
 
 #if PRINT_BINARY != 1  //Print either Ascii or binary messages
         
-        Serial.print("!!");
+        Serial.print("!");
 //	Serial.print("!!!VER:");
 //	Serial.print(SOFTWARE_VER);  //output the software version
 //	Serial.print(",");

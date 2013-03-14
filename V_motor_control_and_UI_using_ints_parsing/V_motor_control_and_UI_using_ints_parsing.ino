@@ -53,7 +53,7 @@ boolean armed = false;
 boolean new_commands_present = false;
 
 #define DEBUGGING 1                          // used to print debugging messages
-
+#define MONITOR 0 
 void setup()
 {
   Serial.begin(115200);
@@ -65,7 +65,7 @@ void setup()
 //  yaw_string.reserve(10);
   
   boolean motor_setup_debug = motor_setup();
-  #if DEBUGGING == 1
+  #if MONITOR == 1
     if (motor_setup_debug)
     {
       Serial.println("Motors successfully attached to drive pins");
@@ -81,7 +81,9 @@ void loop()
   //check_battery_voltage(danger_threshold);
   if( millis()- last_time > 300)
   {
+  #if MONITOR == 1
     Serial.println("sanity print");
+  #endif
     last_time = millis();
     //get_IMU_data();
     motor_driver(armed);
@@ -92,18 +94,26 @@ void loop()
   {
     new_commands_present = false;
     byte length = Serial.read();
-    Serial.println(length);
+    #if MONITOR == 1
+      Serial.println(length);
+    #endif
     if (length == 7)
     {
+      #if MONITOR == 1
       Serial.println("Begin");
+      #endif
       for( int i = 0; i < length; i++)
       {
         while( Serial.available() < 1)
         {
+          #if MONITOR == 1
           Serial.println("Waiting");
+          #endif
         }
         commands[i] = Serial.read();
+        #if MONITOR == 1
         Serial.println(commands[i]);
+        #endif
       }
     }
 //    Serial2.println("User Commands");
@@ -240,7 +250,6 @@ void motor_driver( boolean& temp_armed)
     
     motor1_speed = 1500 + x_speed - yaw_speed;
     motor2_speed = 1500 + x_speed + yaw_speed;
-    Serial.println(motor2_speed);
     motor3_speed = 1500 + y_speed;
     motor4_speed = 1500 + (0.5 * pitch_speed) + z_speed;
     motor5_speed = 1500 + (0.5 * pitch_speed) + z_speed;
@@ -313,12 +322,12 @@ void motor_driver( boolean& temp_armed)
 ****************************************************************/
 void ESCArm()
 {
-  #if DEBUGGING == 1
+  #if MONITOR == 1
     Serial.println("Arming ESC...");
   #endif
   motor2.writeMicroseconds(1500);
   delay(1000);
-  #if DEBUGGING == 1
+  #if MONITOR == 1
     Serial.println("Done!");
   #endif
   armed = true;
@@ -333,12 +342,12 @@ void ESCArm()
 ****************************************************************/
 void Stop()
 {
-  #if DEBUGGING == 1
+  #if MONITOR == 1
     Serial.println("Stopping");
   #endif
   motor1.writeMicroseconds(1500);
   delay(1000);
-  #if DEBUGGING == 1
+  #if MONITOR == 1
     Serial.println("Stopped.");
   #endif
   delay(100);

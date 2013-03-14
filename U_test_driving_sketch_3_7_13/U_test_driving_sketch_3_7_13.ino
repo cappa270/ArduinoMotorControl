@@ -218,7 +218,7 @@ void motor_driver( boolean& temp_armed)
         case 'k':
         case 'K':
           motor1_speed = 1400;
-          motor2_speed = 1400;
+          motor2_speed = 1700;
           motor1.writeMicroseconds(motor1_speed);
           motor2.writeMicroseconds(motor2_speed);
           Serial.println("Reverse");
@@ -226,8 +226,8 @@ void motor_driver( boolean& temp_armed)
           
         case 'l':
         case 'L':
-          motor1_speed = 1400;
-          motor2_speed = 1600;
+          motor1_speed = 1300;
+          motor2_speed = 1800;
           motor1.writeMicroseconds(motor1_speed);
           motor2.writeMicroseconds(motor2_speed);
           Serial.println("Right");
@@ -235,8 +235,8 @@ void motor_driver( boolean& temp_armed)
           
         case 'j':
         case 'J':
-          motor1_speed = 1600;
-          motor2_speed = 1400;
+          motor1_speed = 1700;
+          motor2_speed = 1900;
           motor1.writeMicroseconds(motor1_speed);
           motor2.writeMicroseconds(motor2_speed);
           Serial.println("Left");

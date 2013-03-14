@@ -10,7 +10,7 @@
 *********************************************************************/
 #include <Servo.h>
 
-float parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
+int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
 
 // motor pin objects
@@ -42,17 +42,14 @@ unsigned long last_time = 0;
 unsigned long loop_runs = 0;
 
 // status tracking variables
-boolean stopped = true;
 boolean armed = false;
-boolean string_complete = false;
-boolean ready_for_data = true;
 
 #define DEBUGGING 1                          // used to print debugging messages
 
 void setup() {
   Serial.begin(38400);
   Serial1.begin(38400);
-  IMU_input_string.reserve(64);
+//  IMU_input_string.reserve(64);
 //  roll_string.reserve(10);
 //  pitch_string.reserve(10);
 //  yaw_string.reserve(10);
@@ -65,6 +62,7 @@ void setup() {
       Serial.println("Motor pins not attached"); 
     }
   #endif
+  ESCArm();
 }
 
 void loop() {
@@ -73,7 +71,7 @@ void loop() {
     // IMU data retrieved and transformed to make it useful for the Arduino
     get_IMU_data();
     // Motor adjustment based on IMU input
-    motor_driver(stopped, armed);
+    motor_driver(armed);
     Serial1.flush();
   }
 }
@@ -87,7 +85,7 @@ void get_IMU_data() {
   // The if statement provides a condition for running the conversion. We
   // only want to run the conversion every half second in order to not be
   // swtiching the motor speeds constantly
-  if( string_complete == true) {
+  if( IMU_input_string.length() > 0) {
       // Next 6 statements are used to mark indeces of the delimiter characters
       int colon_1 = IMU_input_string.indexOf(':');
       int comma_1 = IMU_input_string.indexOf(',');
@@ -103,13 +101,11 @@ void get_IMU_data() {
       String yaw_string = IMU_input_string.substring(colon_3+1,star);
       
       // Conversion from strings to floating point numbers
-      parsed_IMU_data[0] = roll_string.toFloat();
-      parsed_IMU_data[1] = pitch_string.toFloat();
-      parsed_IMU_data[2] = yaw_string.toFloat();
+      parsed_IMU_data[0] = roll_string.toInt();
+      parsed_IMU_data[1] = pitch_string.toInt();
+      parsed_IMU_data[2] = yaw_string.toInt();
       
       IMU_input_string = "";
-      string_complete = false;
-      ready_for_data = true;
       
       #if DEBUGGING == 1
         Serial.println();
@@ -127,7 +123,7 @@ void get_IMU_data() {
         Serial.println(yaw_string);
         Serial.println();
         
-        Serial.println("Floats");
+        Serial.println("Ints");
         Serial.print("RLL:");
         Serial.print(parsed_IMU_data[0]);
         Serial.print(" PCH:");
@@ -164,21 +160,21 @@ boolean motor_setup() {
   Output: void
   This function starts and stops each motor according to input
 ****************************************************************/
-void motor_driver(boolean& temp_stopped, boolean& temp_armed) {
+void motor_driver( boolean& temp_armed) {
   // storage variables which will be used to scale the motor speeds
-  float current_roll;
-  float current_pitch;
-  float current_yaw;
+  int current_roll;
+  int current_pitch;
+  int current_yaw;
   
   if( Serial.available()) {
     char command = Serial.read();
     if( (command == 'A' || command == 'a') && !temp_armed) {
       ESCArm();
-    } else if( (command == 'S' || command == 's') && !temp_stopped) {
+    } else if( (command == 'S' || command == 's') && temp_armed) {
       Stop();
     }
   }
-  if(temp_armed && !temp_stopped) {
+  if(temp_armed) {
     // current role must be calculated to determine how much motors
     // 4 and 5 must compensate
     current_roll = parsed_IMU_data[0];
@@ -228,7 +224,6 @@ void ESCArm() {
   delay(1000);
   Serial.println("Done!");
   armed = true;
-  stopped = false;
 }
 /****************************************************************
   End Motor Module
@@ -245,7 +240,6 @@ void Stop() {
   Serial.println("Stopped.");
   delay(100);
   armed = false;
-  stopped = true;
 }
 /****************************************************************
   End Stop Module
@@ -255,21 +249,33 @@ void Stop() {
   Serial Event Module
   Used to implement polling between the MEGA and the IMU
 ****************************************************************/
-void serialEvent1() {
-  if( ready_for_data == true) {
-    if( Serial1.available()) {
-      char first_char;
-      do {
-        first_char = Serial1.read();
-      } while( first_char != '!');
-      while( first_char == '!' && first_char != '*') {
-        char in_char = Serial1.read();
-        IMU_input_string += in_char;
-        if (in_char == '*') {
-          string_complete = true;
-          ready_for_data = false;
-          first_char = '*';
+void serialEvent1()
+{
+  String valid_chars = ".,:-1234567890";
+  if( IMU_input_string.length() == 0)
+  {
+    char in_char;
+    
+    do
+    {
+      in_char = Serial1.read();
+    } while( in_char != '!');
+    
+    while( in_char != '*')
+    {
+      in_char = Serial1.read();
+      
+      for( int i = 0; i < valid_chars.length(); i++)
+      {
+        if( in_char == valid_chars[i])
+        {
+          IMU_input_string += in_char;
+          break;
         }
+      }
+      if( in_char == '!')
+      {
+        break;
       }
     }
   }

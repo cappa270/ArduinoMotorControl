@@ -1,3 +1,4 @@
+
 /*********************************************************************
   Written by Mitch Fynaardt
   Date: February 1, 2013
@@ -10,29 +11,18 @@
 *********************************************************************/
 #include <Servo.h>
 
-#define DEBUGGING 1                          // used to print debugging messages
-#define MONITOR 0
-
 int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
 byte commands[] = {0,127,127,127,127,127,127};
 float danger_threshold = 10.8;
 
-// motor pin objects for MEGA use only
+// motor pin objects
 #define motor1_pin 2
 #define motor2_pin 3
 #define motor3_pin 4
 #define motor4_pin 5
 #define motor5_pin 6
 #define motor6_pin 7
-
-// motor pin objects for UNO use only
-//  #define motor1_pin 3
-//  #define motor2_pin 5
-//  #define motor3_pin 6
-//  #define motor4_pin 9
-//  #define motor5_pin 10
-//  #define motor6_pin 11
 
 // Servo objects to control servo motors
 Servo motor1;
@@ -63,6 +53,8 @@ unsigned long loop_runs = 0;
 boolean armed = false;
 boolean new_commands_present = false;
 
+#define DEBUGGING 1                          // used to print debugging messages
+#define MONITOR 0 
 void setup()
 {
   Serial.begin(115200);
@@ -90,9 +82,9 @@ void loop()
   //check_battery_voltage(danger_threshold);
   if( millis()- last_time > 300)
   {
-    #if MONITOR == 1
-      Serial.println("sanity print");
-    #endif
+  #if MONITOR == 1
+    Serial.println("sanity print");
+  #endif
     last_time = millis();
     //get_IMU_data();
     motor_driver(armed);
@@ -109,32 +101,21 @@ void loop()
     if (length == 7)
     {
       #if MONITOR == 1
-        Serial.println("Begin");
+      Serial.println("Begin");
       #endif
       for( int i = 0; i < length; i++)
       {
         while( Serial.available() < 1)
         {
-          #if MONITOR == 1
-            Serial.println("Waiting");
-          #endif
         }
         commands[i] = Serial.read();
         #if MONITOR == 1
-          Serial.println(commands[i]);
+        Serial.println((int)commands[i]);
         #endif
       }
     }
-//    Serial2.println("User Commands");
-//    Serial2.println(commands[0]);
-//    Serial2.println(commands[1]);
-//    Serial2.println(commands[2]);
-//    Serial2.println(commands[3]);
-//    Serial2.println(commands[4]);
-//    Serial2.println(commands[5]);
-//    Serial2.println(commands[6]);
-//    Serial2.println();
   }
+  
 }
 
 /*********************************************************************
@@ -270,7 +251,6 @@ void motor_driver( boolean& temp_armed)
     motor4.writeMicroseconds(motor4_speed);
     motor5.writeMicroseconds(motor5_speed);
     motor6.writeMicroseconds(motor6_speed);
- 
     
 //    // current role must be calculated to determine how much motors
 //    // 4 and 5 must compensate
@@ -454,3 +434,4 @@ Referring to the battery monitoring pins comming out of a standard LiPo battery:
 /****************************************************************
   End Battery Checking Module
 ****************************************************************/
+

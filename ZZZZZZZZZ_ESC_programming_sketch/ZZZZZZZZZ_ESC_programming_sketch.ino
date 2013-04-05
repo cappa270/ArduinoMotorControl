@@ -1,5 +1,5 @@
 #include <Servo.h>
-#define motor_pin 3
+#define motor_pin 2
 
 Servo motor;
 

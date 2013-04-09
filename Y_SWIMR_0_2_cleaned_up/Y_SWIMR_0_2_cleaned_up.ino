@@ -69,6 +69,8 @@ boolean armed = false;
 // serial input flags
 boolean new_commands_present = false;
 boolean new_IMU_data_present = false;
+boolean water_leak = false;
+boolean returning_to_surface = false;
 
 // used to print debugging messages
 #define DEBUGGING 0
@@ -89,6 +91,7 @@ void setup()
       Serial.println("Motor pins not attached"); 
     }
   #endif
+  ESCArm();
 }
 
 void loop()
@@ -255,22 +258,59 @@ void motor_driver( boolean& temp_armed)
     
     if (commands[1] == 127 && commands[2] == 127)
     {
-      // ADD DEAD ZONE FOR IMU ADJUSTMENT
-      front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) + IMU_roll_adjustment + z_speed;
-      front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) - IMU_roll_adjustment + z_speed;
-    } else
-    {
-      front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed) + z_speed;
-      front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed) + z_speed;
+      if (current_pitch > 30 || current_pitch < -30)
+      {
+        front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
+        front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
+      } else
+      {
+        front_left_vertical_motor_speed = 1500;
+        front_right_vertical_motor_speed = 1500;
+      }
+      if ( current_roll > 30 || current_roll < -30)
+      {
+        front_left_vertical_motor_speed = front_left_vertical_motor_speed + IMU_roll_adjustment;
+        front_right_vertical_motor_speed = front_right_vertical_motor_speed - IMU_roll_adjustment;
+      }
     }
-    
-    if (commands[2] == 127)
+    else if ( commands[1] == 127 && commands[2] != 127)
     {
-      // ADD DEAD ZONE FOR IMU ADJUSTMENT
-      rear_vertical_motor_speed = 1500 - IMU_pitch_adjustment + z_speed;
-    } else
+      if ( current_roll > 30 || current_roll < -30)
+      {
+        front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed) + IMU_roll_adjustment;
+        front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed) - IMU_roll_adjustment;
+      } else
+      {
+        front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed);
+        front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed);
+      }
+    }
+    else if ( commands[1] != 127 && commands[2] == 127)
+    {
+      if ( current_pitch > 30 || current_pitch < -30)
+      {
+        front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) + roll_speed;
+        front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) - roll_speed;
+      } else
+      {
+        front_left_vertical_motor_speed = 1500 + roll_speed;
+        front_right_vertical_motor_speed = 1500 - roll_speed;
+      }
+    }
+    front_left_vertical_motor_speed = front_left_vertical_motor_speed + z_speed;
+    front_right_vertical_motor_speed = front_right_vertical_motor_speed + z_speed;
+    
+    if (commands[2] != 127)
     {
       rear_vertical_motor_speed = 1500 - pitch_speed + z_speed;
+    }
+    else if (current_pitch > 30 || current_pitch < -30)
+    {
+      rear_vertical_motor_speed = 1500 - IMU_pitch_adjustment + z_speed;
+    } 
+    else
+    {
+      rear_vertical_motor_speed = 1500 + z_speed;
     }
     
     left_axial_motor_speed = constrain(left_axial_motor_speed, 1250, 1750);
@@ -390,7 +430,7 @@ This function requires A0
   float cell_1_voltage = (cell_1_raw / 1023.0 ) * 5.0;
   // total voltage is divided by 3 in order to check raw value
   // multiplying by 3 reports the total voltage
-  total_voltage = cell_1_voltage * 3;
+  total_voltage = cell_1_voltage * 3.0;
   // print out the value you 
  return total_voltage <= threshold;
 }
@@ -413,6 +453,10 @@ void dht22()
     // put values into float variables so they can be communicated to UI
       internal_temp = myDHT22.getTemperatureC();
       internal_humidity = myDHT22.getHumidity();
+      if ( internal_humidity >= 90)
+      {
+        water_leak = true;
+      }
       break;
     default:
       break;
@@ -481,25 +525,29 @@ float get_water_temp(){
   Used to read new command packets from the user
 ****************************************************************/
 void new_commands() {
-  if( new_commands_present)
+  if( new_commands_present && !returning_to_surface)
   {
     new_commands_present = false;
     byte length = Serial.read();
     if (length == 8)
     {
-      for( int i = 0; i < length - 1; i++)
+      for( int i = 0; i < length; i++)
       {
         while( Serial.available() < 1)
         {
         }
         commands[i] = Serial.read();
       }
-      if (commands[0] == 255)
+      if (commands[1] == 1 && commands[0] == 0 && !armed && !water_leak) //If user wants it to arm, and there are no errors, and its not already armed
       {
         ESCArm();
-      } else if (commands[0] == 0)
+      } else if (commands[1] == 0 && !water_leak ) //if the user wants it to disarm
       {
-        Stop();
+        //Stop();
+      } else if ( commands[0] == 1 || water_leak) //if there are errors
+      {
+        if(!armed) ESCArm();
+        //return_to_surface();
       }
     }
   }
@@ -588,4 +636,22 @@ void new_IMU_data_received()
 }
 /****************************************************************
   End New IMU Data Receiving Module
+****************************************************************/
+
+/****************************************************************
+  Return to Surface Module
+  Used to bring the Sub to the surface in case of emergency
+****************************************************************/
+void return_to_surface()
+{
+  returning_to_surface = true;
+  left_axial_motor.writeMicroseconds(1500);
+  right_axial_motor.writeMicroseconds(1500);
+  strafing_motor.writeMicroseconds(1500);
+  front_left_vertical_motor.writeMicroseconds(1625);
+  front_right_vertical_motor.writeMicroseconds(1625);
+  rear_vertical_motor.writeMicroseconds(1750);
+}
+/****************************************************************
+  End Return to Surface Module
 ****************************************************************/

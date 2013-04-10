@@ -15,6 +15,8 @@
 
 int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
+
+//{error, arm, roll, pitch, yaw, x, y, z}
 byte commands[] = {0,127,127,127,127,127,127,127};
 float danger_threshold = 10.8;
 float internal_temp;
@@ -41,6 +43,9 @@ int DS18S20_Pin = 9;
 
 // OneWire object for external temp sensor
 OneWire ds(DS18S20_Pin);
+
+// Battery sensing pin
+int batt_pin = A0;
 
 // Servo objects to control servo motors
 Servo left_axial_motor;
@@ -92,6 +97,7 @@ void setup()
     }
   #endif
   ESCArm();
+  pinMode(batt_pin, INPUT);
 }
 
 void loop()
@@ -239,24 +245,24 @@ void motor_driver( boolean& temp_armed)
     int IMU_yaw_adjustment = map(current_yaw, -180, 180, -max_IMU_adjustment, max_IMU_adjustment);
     
     // ADD DESCRIPTORS ABOVE EACH MOTOR INDICATING WHICH DIRECTION EACH MAX VALUE DRIVES
-    int roll_speed = map((int)commands[1], min_user_input, max_user_input, -user_roll_max, user_roll_max);
+    int roll_speed = map((int)commands[2], min_user_input, max_user_input, -user_roll_max, user_roll_max);
     //
-    int pitch_speed = map((int)commands[2], min_user_input, max_user_input, -user_pitch_max, user_pitch_max);
+    int pitch_speed = map((int)commands[3], min_user_input, max_user_input, -user_pitch_max, user_pitch_max);
     //
-    int yaw_speed = map((int)commands[3], min_user_input, max_user_input, -user_yaw_max, user_yaw_max);
+    int yaw_speed = map((int)commands[4], min_user_input, max_user_input, -user_yaw_max, user_yaw_max);
     // 
-    int x_speed = map((int)commands[4], min_user_input, max_user_input, -user_x_max, user_x_max);
+    int x_speed = map((int)commands[5], min_user_input, max_user_input, -user_x_max, user_x_max);
     // 
-    int y_speed = map((int)commands[5], min_user_input, max_user_input, -user_y_max, user_y_max);
+    int y_speed = map((int)commands[6], min_user_input, max_user_input, -user_y_max, user_y_max);
     //
-    int z_speed = map((int)commands[6], min_user_input, max_user_input, -user_z_max, user_z_max);
+    int z_speed = map((int)commands[7], min_user_input, max_user_input, -user_z_max, user_z_max);
     
     // Drive motors with either the user input or the IMU data
     left_axial_motor_speed = 1500 + x_speed - yaw_speed;
     right_axial_motor_speed = 1500 + x_speed + yaw_speed;
     strafing_motor_speed = 1500 + y_speed;
     
-    if (commands[1] == 127 && commands[2] == 127)
+    if (commands[2] == 127 && commands[3] == 127)
     {
       if (current_pitch > 30 || current_pitch < -30)
       {
@@ -273,7 +279,7 @@ void motor_driver( boolean& temp_armed)
         front_right_vertical_motor_speed = front_right_vertical_motor_speed - IMU_roll_adjustment;
       }
     }
-    else if ( commands[1] == 127 && commands[2] != 127)
+    else if ( commands[2] == 127 && commands[3] != 127)
     {
       if ( current_roll > 30 || current_roll < -30)
       {
@@ -285,7 +291,7 @@ void motor_driver( boolean& temp_armed)
         front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed);
       }
     }
-    else if ( commands[1] != 127 && commands[2] == 127)
+    else if ( commands[2] != 127 && commands[3] == 127)
     {
       if ( current_pitch > 30 || current_pitch < -30)
       {
@@ -300,7 +306,7 @@ void motor_driver( boolean& temp_armed)
     front_left_vertical_motor_speed = front_left_vertical_motor_speed + z_speed;
     front_right_vertical_motor_speed = front_right_vertical_motor_speed + z_speed;
     
-    if (commands[2] != 127)
+    if (commands[3] != 127)
     {
       rear_vertical_motor_speed = 1500 - pitch_speed + z_speed;
     }
@@ -423,8 +429,8 @@ Make sure that the threashold is a float!!!
 This function requires A0
   ****************/
   
-  // read the input on analog pin 0:
-  int cell_1_raw = analogRead(A0);
+  // read the input on batt_pin (analog 0):
+  int cell_1_raw = analogRead(batt_pin);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
   float cell_1_voltage = (cell_1_raw / 1023.0 ) * 5.0;
@@ -543,7 +549,7 @@ void new_commands() {
         ESCArm();
       } else if (commands[1] == 0 && !water_leak ) //if the user wants it to disarm
       {
-        //Stop();
+        Stop();
       } else if ( commands[0] == 1 || water_leak) //if there are errors
       {
         if(!armed) ESCArm();

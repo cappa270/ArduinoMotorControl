@@ -39,7 +39,7 @@ float total_voltage;
 DHT22 myDHT22(DHT22_PIN);
 
 // external temp sensor object
-#define DS18S20_Pin 9;
+#define DS18S20_Pin 9
 
 // OneWire object for external temp sensor
 OneWire oneWire(DS18S20_Pin);

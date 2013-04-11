@@ -25,12 +25,12 @@ float water_temp;
 float total_voltage;
 
 // motor pin objects
-#define left_axial_motor_pin 2
-#define right_axial_motor_pin 3
+#define left_axial_motor_pin 7
+#define right_axial_motor_pin 2
 #define strafing_motor_pin 4
-#define front_left_vertical_motor_pin 5
-#define front_right_vertical_motor_pin 6
-#define rear_vertical_motor_pin 7
+#define front_left_vertical_motor_pin 6
+#define front_right_vertical_motor_pin 3
+#define rear_vertical_motor_pin 5
 
 // internal temp and humidity sensor object on pin 8
 #define DHT22_PIN 8
@@ -433,7 +433,7 @@ This function requires A0
   int cell_1_raw = analogRead(batt_pin);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float cell_1_voltage = (cell_1_raw / 1023.0 ) * 5.0;
+  float cell_1_voltage = ((float)cell_1_raw / 1023.0 ) * 5.0;
   // total voltage is divided by 3 in order to check raw value
   // multiplying by 3 reports the total voltage
   total_voltage = cell_1_voltage * 3.0;

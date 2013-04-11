@@ -1,4 +1,3 @@
-
 /*********************************************************************
   Written by Mitch Fynaardt
   Date: February 1, 2013
@@ -11,7 +10,8 @@
 *********************************************************************/
 #include <Servo.h>
 #include <DHT22.h>
-//#include <OneWire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
@@ -39,10 +39,11 @@ float total_voltage;
 DHT22 myDHT22(DHT22_PIN);
 
 // external temp sensor object
-//int DS18S20_Pin = 9;
+#define DS18S20_Pin 9;
 
 // OneWire object for external temp sensor
-//OneWire ds(DS18S20_Pin);
+OneWire oneWire(DS18S20_Pin);
+DallasTemperature sensors(&oneWire);
 
 // Battery sensing pin
 int batt_pin = A0;
@@ -97,6 +98,7 @@ void setup()
     }
   #endif
   pinMode(batt_pin, INPUT);
+  sensors.begin();
 }
 
 void loop()
@@ -110,7 +112,8 @@ void loop()
     motor_driver(armed);
     // temperature sensor values read
     dht22();
-    //water_temp = get_water_temp();
+    sensors.requestTemperatures();
+    water_temp = sensors.getTempCByIndex(0);
     // battery check function
     check_battery_voltage(danger_threshold);
     // send all updated values and info to the user
@@ -585,10 +588,10 @@ void new_commands() {
       if (commands[1] == 1 && commands[0] == 0 && !armed && !water_leak) //If user wants it to arm, and there are no errors, and its not already armed
       {
         ESCArm();
-      } else if (commands[1] == 0 && !water_leak ) //if the user wants it to disarm
+      } else if ((commands[1] == 0 && !water_leak) || commands[0] == 1 ) //if the user wants it to disarm
       {
         Stop();
-      } else if ( commands[0] == 1 || water_leak) //if there are errors
+      } else if ( water_leak) //if there are errors
       {
         if(!armed) ESCArm();
         //return_to_surface();
@@ -610,7 +613,7 @@ void send_data()
   data_to_user[0] = parsed_IMU_data[0];
   data_to_user[1] = parsed_IMU_data[1];
   data_to_user[2] = parsed_IMU_data[2];
-  data_to_user[3] = 0.0;
+  data_to_user[3] = water_temp;
   data_to_user[4] = internal_temp;
   data_to_user[5] = internal_humidity;
   data_to_user[6] = 0.0;

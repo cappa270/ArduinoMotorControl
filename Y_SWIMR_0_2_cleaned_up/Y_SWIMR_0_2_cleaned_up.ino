@@ -377,7 +377,7 @@ void ESCArm()
   rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   delay(250);
   #if MONITOR == 1
-    Serial.println("Done!");
+    Serial.println("Armed");
   #endif
   armed = true;
 }

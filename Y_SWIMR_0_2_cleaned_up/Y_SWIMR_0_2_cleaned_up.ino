@@ -96,7 +96,6 @@ void setup()
       Serial.println("Motor pins not attached"); 
     }
   #endif
-  ESCArm();
   pinMode(batt_pin, INPUT);
 }
 
@@ -333,6 +332,22 @@ void motor_driver( boolean& temp_armed)
     front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
     rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   }
+  else
+  {
+    left_axial_motor_speed = 1500;
+    right_axial_motor_speed = 1500;
+    strafing_motor_speed = 1500;
+    front_left_vertical_motor_speed = 1500;
+    front_right_vertical_motor_speed = 1500;
+    rear_vertical_motor_speed = 1500;
+    
+    left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+    right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+    strafing_motor.writeMicroseconds(strafing_motor_speed);
+    front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+    front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+    rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
+  }
 }
 /****************************************************************
   End Motor Module
@@ -347,13 +362,20 @@ void ESCArm()
   #if MONITOR == 1
     Serial.println("Arming ESC...");
   #endif
-  left_axial_motor.writeMicroseconds(1500);
-  right_axial_motor.writeMicroseconds(1500);
-  strafing_motor.writeMicroseconds(1500);
-  front_left_vertical_motor.writeMicroseconds(1500);
-  front_right_vertical_motor.writeMicroseconds(1500);
-  rear_vertical_motor.writeMicroseconds(1500);
-  delay(1000);
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
+    
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
+  delay(250);
   #if MONITOR == 1
     Serial.println("Done!");
   #endif
@@ -372,13 +394,20 @@ void Stop()
   #if MONITOR == 1
     Serial.println("Stopping");
   #endif
-  left_axial_motor.writeMicroseconds(1500);
-  right_axial_motor.writeMicroseconds(1500);
-  strafing_motor.writeMicroseconds(1500);
-  front_left_vertical_motor.writeMicroseconds(1500);
-  front_right_vertical_motor.writeMicroseconds(1500);
-  rear_vertical_motor.writeMicroseconds(1500);
-  delay(1000);
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
+  
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
+  delay(250);
   #if MONITOR == 1
     Serial.println("Stopped.");
   #endif
@@ -433,7 +462,7 @@ This function requires A0
   int cell_1_raw = analogRead(batt_pin);
   
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  float cell_1_voltage = ((float)cell_1_raw / 1023.0 ) * 5.0;
+  float cell_1_voltage = ((float)cell_1_raw / 1023.0 ) * 4.98;
   // total voltage is divided by 3 in order to check raw value
   // multiplying by 3 reports the total voltage
   total_voltage = cell_1_voltage * 3.0;
@@ -543,6 +572,15 @@ void new_commands() {
         {
         }
         commands[i] = Serial.read();
+      }
+      if (!armed)
+      {
+       commands[2] = 127;
+       commands[3] = 127;
+       commands[4] = 127;
+       commands[5] = 127;
+       commands[6] = 127;
+       commands[7] = 127;
       }
       if (commands[1] == 1 && commands[0] == 0 && !armed && !water_leak) //If user wants it to arm, and there are no errors, and its not already armed
       {

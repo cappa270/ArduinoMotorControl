@@ -1,3 +1,4 @@
+
 /*********************************************************************
   Written by Mitch Fynaardt
   Date: February 1, 2013
@@ -8,28 +9,43 @@
   captures user input via a hardware serial port and calculates a
   servo motor speed.
 *********************************************************************/
+#include <Servo.h>
 #include <DHT22.h>
-#include <OneWire.h>
-#include <PWMServo.h>
 
-int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
-String IMU_input_string = "";                  // String to store the incoming data from the IMU
+// analog pin for reading water temperature
+#define THERMISTORPIN A1
+// resistance at 25 degrees C
+#define THERMISTORNOMINAL 10000
+// temp. for nominal resistance (almost always 25 C)
+#define TEMPERATURENOMINAL 25   
+// how many water temperature samples to take
+#define NUMSAMPLES 5
+// The beta coefficient of the thermistor (usually 3000-4000)
+#define BCOEFFICIENT 3950
+// the value of the 'other' resistor in the voltage divider
+#define SERIESRESISTOR 10000
+
+// float array for storing the parsed IMU data.
+int parsed_IMU_data[3];
+// String to store the incoming data from the IMU
+String IMU_input_string = "";
 
 //{error, arm, roll, pitch, yaw, x, y, z}
-byte commands[] = {0,127,127,127,127,127,127,127};
+byte commands[] = {0,0,127,127,127,127,127,127};
 float danger_threshold = 10.8;
 float internal_temp;
 float internal_humidity;
 float water_temp;
+float water_depth;
 float total_voltage;
 
 // motor pin objects
-//#define left_axial_motor_pin SERVO_PIN_A
-//#define right_axial_motor_pin 2
-//#define strafing_motor_pin 4
-//#define front_left_vertical_motor_pin 6
-//#define front_right_vertical_motor_pin 3
-//#define rear_vertical_motor_pin 5
+#define left_axial_motor_pin 7
+#define right_axial_motor_pin 2
+#define strafing_motor_pin 4
+#define front_left_vertical_motor_pin 6
+#define front_right_vertical_motor_pin 3
+#define rear_vertical_motor_pin 5
 
 // internal temp and humidity sensor object on pin 8
 #define DHT22_PIN 8
@@ -37,22 +53,19 @@ float total_voltage;
 // instance of DHT22 internal temp sensor
 DHT22 myDHT22(DHT22_PIN);
 
-// external temp sensor object
-int DS18S20_Pin = 9;
-
-// OneWire object for external temp sensor
-OneWire ds(DS18S20_Pin);
+// samples variable is used to compute water temp
+int samples[NUMSAMPLES];
 
 // Battery sensing pin
 int batt_pin = A0;
 
 // Servo objects to control servo motors
-PWMServo left_axial_motor;
-PWMServo right_axial_motor;
-PWMServo strafing_motor;
-PWMServo front_left_vertical_motor;
-PWMServo front_right_vertical_motor;
-PWMServo rear_vertical_motor;
+Servo left_axial_motor;
+Servo right_axial_motor;
+Servo strafing_motor;
+Servo front_left_vertical_motor;
+Servo front_right_vertical_motor;
+Servo rear_vertical_motor;
 
 // Initialize motor speeds to neutral
 int left_axial_motor_speed = 1500;
@@ -61,6 +74,14 @@ int strafing_motor_speed = 1500;
 int front_left_vertical_motor_speed = 1500;
 int front_right_vertical_motor_speed = 1500;
 int rear_vertical_motor_speed = 1500;
+
+// Initialize direction speeds
+int x_speed = 127;
+int y_speed = 127;
+int z_speed = 127;
+int roll_speed = 127;
+int pitch_speed = 127;
+int yaw_speed = 127;
 
 // loop tracking variables
 unsigned long last_time = 0;
@@ -73,8 +94,18 @@ boolean armed = false;
 // serial input flags
 boolean new_commands_present = false;
 boolean new_IMU_data_present = false;
+
+// danger status flags
 boolean water_leak = false;
 boolean returning_to_surface = false;
+
+// User defined settings
+#define FRESH_WATER 1
+#if FRESH_WATER == 1
+  float depth_conversion = 2.9647456347;
+#else
+  float depth_conversion = 3.0336932076;
+#endif
 
 // used to print debugging messages
 #define DEBUGGING 0
@@ -95,21 +126,21 @@ void setup()
       Serial.println("Motor pins not attached"); 
     }
   #endif
-  pinMode(batt_pin, INPUT);
 }
 
 void loop()
 {
-  if( millis()- last_time > 50)
+  if( millis()- last_time > 5)
   {
     last_time = millis();
     // new values read from IMU
     get_IMU_data();
     // new IMU values and user input interpretted into motor commands
-    motor_driver(armed);
-    // temperature sensor values read
+    motor_driver();
+    // sensor values read and calculated
     dht22();
     water_temp = get_water_temp();
+    water_depth = get_depth();
     // battery check function
     check_battery_voltage(danger_threshold);
     // send all updated values and info to the user
@@ -125,13 +156,11 @@ void loop()
 /*********************************************************************
   Function to read IMU values and make them useful for the Arduino MEGA
   Input: None
-  Output: Nonewrite
+  Output: None
   *******************************************************************/
 void get_IMU_data()
 {
-  /* The if statement provides a condition for running the conversion. We
-     only want to run the conversion every half second in order to not be
-     swtiching the motor speeds constantly */
+  /* motor driver only runs when there is new IMU input data */
   if( IMU_input_string.length() > 0)
   {
       // Next 6 statements are used to mark indeces of the delimiter characters
@@ -191,12 +220,20 @@ void get_IMU_data()
 ****************************************************************/
 boolean motor_setup()
 {
-  left_axial_motor.attach(SERVO_PIN_A,1000,2000);
-  right_axial_motor.attach(right_axial_motor_pin,1000,2000);
-  strafing_motor.attach(strafing_motor_pin,1000,2000);
-  front_left_vertical_motor.attach(front_left_vertical_motor_pin,1000,2000);
-  front_right_vertical_motor.attach(front_right_vertical_motor_pin,1000,2000);
-  rear_vertical_motor.attach(rear_vertical_motor_pin,1000,2000);
+  left_axial_motor.attach(left_axial_motor_pin);
+  right_axial_motor.attach(right_axial_motor_pin);
+  strafing_motor.attach(strafing_motor_pin);
+  front_left_vertical_motor.attach(front_left_vertical_motor_pin);
+  front_right_vertical_motor.attach(front_right_vertical_motor_pin);
+  rear_vertical_motor.attach(rear_vertical_motor_pin);
+  
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
+  
   return left_axial_motor.attached() && right_axial_motor.attached() && strafing_motor.attached() && front_left_vertical_motor.attached() && front_right_vertical_motor.attached() && rear_vertical_motor.attached();
 }
 /****************************************************************
@@ -210,7 +247,7 @@ boolean motor_setup()
   This function starts and stops each motor according to input
   and IMU readings
 ****************************************************************/
-void motor_driver( boolean& temp_armed)
+void motor_driver()
 {
   // storage variables which will be used to scale the motor speeds
   int current_roll = int(parsed_IMU_data[0]);
@@ -230,7 +267,7 @@ void motor_driver( boolean& temp_armed)
   // this variable is the maximum drive increment that the IMU may send to adjust position
   int max_IMU_adjustment = 250;
   
-  if( temp_armed)
+  if( armed)
   {
     // IMU calculations take place here, the results will bring the Sub back to neutral position
     // if no user input is being received
@@ -243,17 +280,17 @@ void motor_driver( boolean& temp_armed)
     int IMU_yaw_adjustment = map(current_yaw, -180, 180, -max_IMU_adjustment, max_IMU_adjustment);
     
     // ADD DESCRIPTORS ABOVE EACH MOTOR INDICATING WHICH DIRECTION EACH MAX VALUE DRIVES
-    int roll_speed = map((int)commands[2], min_user_input, max_user_input, -user_roll_max, user_roll_max);
+    roll_speed = map((int)commands[2], min_user_input, max_user_input, -user_roll_max, user_roll_max);
     //
-    int pitch_speed = map((int)commands[3], min_user_input, max_user_input, -user_pitch_max, user_pitch_max);
+    pitch_speed = map((int)commands[3], min_user_input, max_user_input, -user_pitch_max, user_pitch_max);
     //
-    int yaw_speed = map((int)commands[4], min_user_input, max_user_input, -user_yaw_max, user_yaw_max);
+    yaw_speed = map((int)commands[4], min_user_input, max_user_input, -user_yaw_max, user_yaw_max);
     // 
-    int x_speed = map((int)commands[5], min_user_input, max_user_input, -user_x_max, user_x_max);
+    x_speed = map((int)commands[5], min_user_input, max_user_input, -user_x_max, user_x_max);
     // 
-    int y_speed = map((int)commands[6], min_user_input, max_user_input, -user_y_max, user_y_max);
+    y_speed = map((int)commands[6], min_user_input, max_user_input, -user_y_max, user_y_max);
     //
-    int z_speed = map((int)commands[7], min_user_input, max_user_input, -user_z_max, user_z_max);
+    z_speed = map((int)commands[7], min_user_input, max_user_input, -user_z_max, user_z_max);
     
     // Drive motors with either the user input or the IMU data
     left_axial_motor_speed = 1500 + x_speed - yaw_speed;
@@ -262,7 +299,7 @@ void motor_driver( boolean& temp_armed)
     
     if (commands[2] == 127 && commands[3] == 127)
     {
-      if (current_pitch > 30 || current_pitch < -30)
+      if (current_pitch > 15 || current_pitch < -15)
       {
         front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
         front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
@@ -273,16 +310,16 @@ void motor_driver( boolean& temp_armed)
       }
       if ( current_roll > 30 || current_roll < -30)
       {
-        front_left_vertical_motor_speed = front_left_vertical_motor_speed + IMU_roll_adjustment;
-        front_right_vertical_motor_speed = front_right_vertical_motor_speed - IMU_roll_adjustment;
+        front_left_vertical_motor_speed = front_left_vertical_motor_speed - IMU_roll_adjustment;
+        front_right_vertical_motor_speed = front_right_vertical_motor_speed + IMU_roll_adjustment;
       }
     }
     else if ( commands[2] == 127 && commands[3] != 127)
     {
       if ( current_roll > 30 || current_roll < -30)
       {
-        front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed) + IMU_roll_adjustment;
-        front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed) - IMU_roll_adjustment;
+        front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed) - IMU_roll_adjustment;
+        front_right_vertical_motor_speed = 1500 + (0.5 * pitch_speed) + IMU_roll_adjustment;
       } else
       {
         front_left_vertical_motor_speed = 1500 + (0.5 * pitch_speed);
@@ -291,7 +328,7 @@ void motor_driver( boolean& temp_armed)
     }
     else if ( commands[2] != 127 && commands[3] == 127)
     {
-      if ( current_pitch > 30 || current_pitch < -30)
+      if ( current_pitch > 15 || current_pitch < -15)
       {
         front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) + roll_speed;
         front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) - roll_speed;
@@ -317,42 +354,35 @@ void motor_driver( boolean& temp_armed)
       rear_vertical_motor_speed = 1500 + z_speed;
     }
     
-    left_axial_motor_speed = map(left_axial_motor_speed, 1000, 2000, 0, 180);
-    right_axial_motor_speed = map(right_axial_motor_speed, 1000, 2000, 0, 180);
-    strafing_motor_speed = map(strafing_motor_speed, 1000, 2000, 0, 180);
-    front_left_vertical_motor_speed = map(front_left_vertical_motor_speed, 1000, 2000, 0, 180);
-    front_right_vertical_motor_speed = map(front_right_vertical_motor_speed, 1000, 2000, 0, 180);
-    rear_vertical_motor_speed = map(rear_vertical_motor_speed, 1000, 2000, 0, 180);
+    left_axial_motor_speed = constrain(left_axial_motor_speed, 1250, 1750);
+    right_axial_motor_speed = constrain(right_axial_motor_speed, 1250, 1750);
+    strafing_motor_speed = constrain(strafing_motor_speed, 1250, 1750);
+    front_left_vertical_motor_speed = constrain(front_left_vertical_motor_speed, 1250, 1750);
+    front_right_vertical_motor_speed = constrain(front_right_vertical_motor_speed, 1250, 1750);
+    rear_vertical_motor_speed = constrain(rear_vertical_motor_speed, 1250, 1750);
     
-    left_axial_motor_speed = constrain(left_axial_motor_speed, 45, 135);
-    right_axial_motor_speed = constrain(right_axial_motor_speed, 45, 135);
-    strafing_motor_speed = constrain(strafing_motor_speed, 45, 135);
-    front_left_vertical_motor_speed = constrain(front_left_vertical_motor_speed, 45, 135);
-    front_right_vertical_motor_speed = constrain(front_right_vertical_motor_speed, 45, 135);
-    rear_vertical_motor_speed = constrain(rear_vertical_motor_speed, 45, 135);
-    
-    left_axial_motor.write(left_axial_motor_speed);
-    right_axial_motor.write(right_axial_motor_speed);
-    strafing_motor.write(strafing_motor_speed);
-    front_left_vertical_motor.write(front_left_vertical_motor_speed);
-    front_right_vertical_motor.write(front_right_vertical_motor_speed);
-    rear_vertical_motor.write(rear_vertical_motor_speed);
+    left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+    right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+    strafing_motor.writeMicroseconds(strafing_motor_speed);
+    front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+    front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+    rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   }
   else
   {
-    left_axial_motor_speed = 90;
-    right_axial_motor_speed = 90;
-    strafing_motor_speed = 90;
-    front_left_vertical_motor_speed = 90;
-    front_right_vertical_motor_speed = 90;
-    rear_vertical_motor_speed = 90;
+    left_axial_motor_speed = 1500;
+    right_axial_motor_speed = 1500;
+    strafing_motor_speed = 1500;
+    front_left_vertical_motor_speed = 1500;
+    front_right_vertical_motor_speed = 1500;
+    rear_vertical_motor_speed = 1500;
     
-    left_axial_motor.write(left_axial_motor_speed);
-    right_axial_motor.write(right_axial_motor_speed);
-    strafing_motor.write(strafing_motor_speed);
-    front_left_vertical_motor.write(front_left_vertical_motor_speed);
-    front_right_vertical_motor.write(front_right_vertical_motor_speed);
-    rear_vertical_motor.write(rear_vertical_motor_speed);
+    left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+    right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+    strafing_motor.writeMicroseconds(strafing_motor_speed);
+    front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+    front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+    rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   }
 }
 /****************************************************************
@@ -368,19 +398,19 @@ void ESCArm()
   #if MONITOR == 1
     Serial.println("Arming ESC...");
   #endif
-  left_axial_motor_speed = 90;
-  right_axial_motor_speed = 90;
-  strafing_motor_speed = 90;
-  front_left_vertical_motor_speed = 90;
-  front_right_vertical_motor_speed = 90;
-  rear_vertical_motor_speed = 90;
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
     
-  left_axial_motor.write(left_axial_motor_speed);
-  right_axial_motor.write(right_axial_motor_speed);
-  strafing_motor.write(strafing_motor_speed);
-  front_left_vertical_motor.write(front_left_vertical_motor_speed);
-  front_right_vertical_motor.write(front_right_vertical_motor_speed);
-  rear_vertical_motor.write(rear_vertical_motor_speed);
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   delay(20);
   #if MONITOR == 1
     Serial.println("Armed");
@@ -400,19 +430,19 @@ void Stop()
   #if MONITOR == 1
     Serial.println("Stopping");
   #endif
-  left_axial_motor_speed = 90;
-  right_axial_motor_speed = 90;
-  strafing_motor_speed = 90;
-  front_left_vertical_motor_speed = 90;
-  front_right_vertical_motor_speed = 90;
-  rear_vertical_motor_speed = 90;
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
   
-  left_axial_motor.write(left_axial_motor_speed);
-  right_axial_motor.write(right_axial_motor_speed);
-  strafing_motor.write(strafing_motor_speed);
-  front_left_vertical_motor.write(front_left_vertical_motor_speed);
-  front_right_vertical_motor.write(front_right_vertical_motor_speed);
-  rear_vertical_motor.write(rear_vertical_motor_speed);
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   delay(20);
   #if MONITOR == 1
     Serial.println("Stopped.");
@@ -498,6 +528,9 @@ void dht22()
       {
         water_leak = true;
       }
+      else {
+        water_leak = false;
+      }
       break;
     default:
       break;
@@ -511,54 +544,59 @@ void dht22()
   External Temp Sensor Module
   Used to report the external water temperature
 ****************************************************************/
-float get_water_temp(){
-  //returns the temperature from one DS18S20 in DEG Celsius
-
-  byte data[12];
-  byte addr[8];
-
-  if ( !ds.search(addr)) {
-      //no more sensors on chain, reset search
-      ds.reset_search();
-      return -1000;
+float get_water_temp()
+{
+  uint8_t i;
+    float average;
+   
+    // take N samples in a row, with a slight delay
+    for (i=0; i< NUMSAMPLES; i++)
+    {
+     samples[i] = analogRead(THERMISTORPIN);
+     delay(5);
+    }
+   
+    // average all the samples out
+    average = 0;
+    for (i=0; i< NUMSAMPLES; i++)
+    {
+       average += samples[i];
+    }
+    average /= NUMSAMPLES;
+   
+    // convert the value to resistance
+    average = 1023 / average - 1;
+    average = SERIESRESISTOR / average;
+   
+    float temperature;
+    temperature = average / THERMISTORNOMINAL;     // (R/Ro)
+    temperature = log(temperature);                // ln(R/Ro)
+    temperature /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
+    temperature += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
+    temperature = 1.0 / temperature;               // Invert
+    temperature -= 273.15;                         // convert to C
+   
+    return temperature;
   }
-
-  if ( OneWire::crc8( addr, 7) != addr[7]) {
-      //Serial.println("CRC is not valid!");
-      return -1000;
-  }
-
-  if ( addr[0] != 0x10 && addr[0] != 0x28) {
-      //Serial.print("Device is not recognized");
-      return -1000;
-  }
-
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44,1); // start conversion, with parasite power on at the end
-
-  byte present = ds.reset();
-  ds.select(addr);    
-  ds.write(0xBE); // Read Scratchpad
-
-  
-  for (int i = 0; i < 9; i++) { // we need 9 bytes
-    data[i] = ds.read();
-  }
-  
-  ds.reset_search();
-  
-  byte MSB = data[1];
-  byte LSB = data[0];
-
-  float tempRead = ((MSB << 8) | LSB); //using two's compliment
-  float TemperatureSum = tempRead / 16;
-  
-  return TemperatureSum;
-  
-}
 /****************************************************************
   End External Temp Sensor Module
+****************************************************************/
+
+/****************************************************************
+  Water Depth Detection Module
+****************************************************************/
+float get_depth()
+{
+  /* depth is calculated by dividing the analog read value by 1023 which is
+   the resolution of the Arduino, multiplying by 0.004 and adding 10 are
+   parts of the transfer function given in the sensor data sheet. The last
+   number is a conversion factor for feet per units of pressure. This can
+   be selected as fresh or salt water by the user */
+  float depth = (((float)analogRead(A2) / (1023.0 * 0.004) + 10)) / depth_conversion;
+  return depth;
+}
+/****************************************************************
+  End Water Depth Detection Module
 ****************************************************************/
 
 /****************************************************************
@@ -591,7 +629,7 @@ void new_commands() {
       if (commands[1] == 1 && commands[0] == 0 && !armed && !water_leak) //If user wants it to arm, and there are no errors, and its not already armed
       {
         ESCArm();
-      } else if ((commands[1] == 0 && !water_leak) || commands[0] == 1) //if the user wants it to disarm
+      } else if (commands[1] == 0 && !water_leak ) //if the user wants it to disarm
       {
         Stop();
       } else if ( commands[0] == 1 || water_leak) //if there are errors
@@ -619,7 +657,7 @@ void send_data()
   data_to_user[3] = water_temp;
   data_to_user[4] = internal_temp;
   data_to_user[5] = internal_humidity;
-  data_to_user[6] = 0.0;
+  data_to_user[6] = water_depth;
   data_to_user[7] = total_voltage;
   
   Serial.print("$$$");
@@ -695,12 +733,12 @@ void new_IMU_data_received()
 void return_to_surface()
 {
   returning_to_surface = true;
-  left_axial_motor.write(90);
-  right_axial_motor.write(90);
-  strafing_motor.write(90);
-  front_left_vertical_motor.write(112);
-  front_right_vertical_motor.write(112);
-  rear_vertical_motor.write(135);
+  left_axial_motor.writeMicroseconds(1500);
+  right_axial_motor.writeMicroseconds(1500);
+  strafing_motor.writeMicroseconds(1500);
+  front_left_vertical_motor.writeMicroseconds(1625);
+  front_right_vertical_motor.writeMicroseconds(1625);
+  rear_vertical_motor.writeMicroseconds(1750);
 }
 /****************************************************************
   End Return to Surface Module

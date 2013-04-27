@@ -1,3 +1,4 @@
+
 /*********************************************************************
   Written by Mitch Fynaardt
   Date: February 1, 2013
@@ -8,9 +9,9 @@
   captures user input via a hardware serial port and calculates a
   servo motor speed.
 *********************************************************************/
+#include <SWIMRServo.h>
 #include <DHT22.h>
 #include <OneWire.h>
-#include <PWMServo.h>
 
 int parsed_IMU_data[3];                      // float array for storing the parsed IMU data.
 String IMU_input_string = "";                  // String to store the incoming data from the IMU
@@ -24,12 +25,12 @@ float water_temp;
 float total_voltage;
 
 // motor pin objects
-//#define left_axial_motor_pin SERVO_PIN_A
-//#define right_axial_motor_pin 2
-//#define strafing_motor_pin 4
-//#define front_left_vertical_motor_pin 6
-//#define front_right_vertical_motor_pin 3
-//#define rear_vertical_motor_pin 5
+#define left_axial_motor_pin 7
+#define right_axial_motor_pin 2
+#define strafing_motor_pin 4
+#define front_left_vertical_motor_pin 6
+#define front_right_vertical_motor_pin 3
+#define rear_vertical_motor_pin 5
 
 // internal temp and humidity sensor object on pin 8
 #define DHT22_PIN 8
@@ -47,12 +48,12 @@ OneWire ds(DS18S20_Pin);
 int batt_pin = A0;
 
 // Servo objects to control servo motors
-PWMServo left_axial_motor;
-PWMServo right_axial_motor;
-PWMServo strafing_motor;
-PWMServo front_left_vertical_motor;
-PWMServo front_right_vertical_motor;
-PWMServo rear_vertical_motor;
+SWIMRServo left_axial_motor;
+SWIMRServo right_axial_motor;
+SWIMRServo strafing_motor;
+SWIMRServo front_left_vertical_motor;
+SWIMRServo front_right_vertical_motor;
+SWIMRServo rear_vertical_motor;
 
 // Initialize motor speeds to neutral
 int left_axial_motor_speed = 1500;
@@ -125,7 +126,7 @@ void loop()
 /*********************************************************************
   Function to read IMU values and make them useful for the Arduino MEGA
   Input: None
-  Output: Nonewrite
+  Output: None
   *******************************************************************/
 void get_IMU_data()
 {
@@ -191,12 +192,12 @@ void get_IMU_data()
 ****************************************************************/
 boolean motor_setup()
 {
-  left_axial_motor.attach(SERVO_PIN_A,1000,2000);
-  right_axial_motor.attach(right_axial_motor_pin,1000,2000);
-  strafing_motor.attach(strafing_motor_pin,1000,2000);
-  front_left_vertical_motor.attach(front_left_vertical_motor_pin,1000,2000);
-  front_right_vertical_motor.attach(front_right_vertical_motor_pin,1000,2000);
-  rear_vertical_motor.attach(rear_vertical_motor_pin,1000,2000);
+  left_axial_motor.attach(left_axial_motor_pin);
+  right_axial_motor.attach(right_axial_motor_pin);
+  strafing_motor.attach(strafing_motor_pin);
+  front_left_vertical_motor.attach(front_left_vertical_motor_pin);
+  front_right_vertical_motor.attach(front_right_vertical_motor_pin);
+  rear_vertical_motor.attach(rear_vertical_motor_pin);
   return left_axial_motor.attached() && right_axial_motor.attached() && strafing_motor.attached() && front_left_vertical_motor.attached() && front_right_vertical_motor.attached() && rear_vertical_motor.attached();
 }
 /****************************************************************
@@ -262,7 +263,7 @@ void motor_driver( boolean& temp_armed)
     
     if (commands[2] == 127 && commands[3] == 127)
     {
-      if (current_pitch > 30 || current_pitch < -30)
+      if (current_pitch > 15 || current_pitch < -15)
       {
         front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
         front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment);
@@ -291,7 +292,7 @@ void motor_driver( boolean& temp_armed)
     }
     else if ( commands[2] != 127 && commands[3] == 127)
     {
-      if ( current_pitch > 30 || current_pitch < -30)
+      if ( current_pitch > 15 || current_pitch < -15)
       {
         front_left_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) + roll_speed;
         front_right_vertical_motor_speed = 1500 + (0.5 * IMU_pitch_adjustment) - roll_speed;
@@ -317,42 +318,35 @@ void motor_driver( boolean& temp_armed)
       rear_vertical_motor_speed = 1500 + z_speed;
     }
     
-    left_axial_motor_speed = map(left_axial_motor_speed, 1000, 2000, 0, 180);
-    right_axial_motor_speed = map(right_axial_motor_speed, 1000, 2000, 0, 180);
-    strafing_motor_speed = map(strafing_motor_speed, 1000, 2000, 0, 180);
-    front_left_vertical_motor_speed = map(front_left_vertical_motor_speed, 1000, 2000, 0, 180);
-    front_right_vertical_motor_speed = map(front_right_vertical_motor_speed, 1000, 2000, 0, 180);
-    rear_vertical_motor_speed = map(rear_vertical_motor_speed, 1000, 2000, 0, 180);
+    left_axial_motor_speed = constrain(left_axial_motor_speed, 1250, 1750);
+    right_axial_motor_speed = constrain(right_axial_motor_speed, 1250, 1750);
+    strafing_motor_speed = constrain(strafing_motor_speed, 1250, 1750);
+    front_left_vertical_motor_speed = constrain(front_left_vertical_motor_speed, 1250, 1750);
+    front_right_vertical_motor_speed = constrain(front_right_vertical_motor_speed, 1250, 1750);
+    rear_vertical_motor_speed = constrain(rear_vertical_motor_speed, 1250, 1750);
     
-    left_axial_motor_speed = constrain(left_axial_motor_speed, 45, 135);
-    right_axial_motor_speed = constrain(right_axial_motor_speed, 45, 135);
-    strafing_motor_speed = constrain(strafing_motor_speed, 45, 135);
-    front_left_vertical_motor_speed = constrain(front_left_vertical_motor_speed, 45, 135);
-    front_right_vertical_motor_speed = constrain(front_right_vertical_motor_speed, 45, 135);
-    rear_vertical_motor_speed = constrain(rear_vertical_motor_speed, 45, 135);
-    
-    left_axial_motor.write(left_axial_motor_speed);
-    right_axial_motor.write(right_axial_motor_speed);
-    strafing_motor.write(strafing_motor_speed);
-    front_left_vertical_motor.write(front_left_vertical_motor_speed);
-    front_right_vertical_motor.write(front_right_vertical_motor_speed);
-    rear_vertical_motor.write(rear_vertical_motor_speed);
+    left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+    right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+    strafing_motor.writeMicroseconds(strafing_motor_speed);
+    front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+    front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+    rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   }
   else
   {
-    left_axial_motor_speed = 90;
-    right_axial_motor_speed = 90;
-    strafing_motor_speed = 90;
-    front_left_vertical_motor_speed = 90;
-    front_right_vertical_motor_speed = 90;
-    rear_vertical_motor_speed = 90;
+    left_axial_motor_speed = 1500;
+    right_axial_motor_speed = 1500;
+    strafing_motor_speed = 1500;
+    front_left_vertical_motor_speed = 1500;
+    front_right_vertical_motor_speed = 1500;
+    rear_vertical_motor_speed = 1500;
     
-    left_axial_motor.write(left_axial_motor_speed);
-    right_axial_motor.write(right_axial_motor_speed);
-    strafing_motor.write(strafing_motor_speed);
-    front_left_vertical_motor.write(front_left_vertical_motor_speed);
-    front_right_vertical_motor.write(front_right_vertical_motor_speed);
-    rear_vertical_motor.write(rear_vertical_motor_speed);
+    left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+    right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+    strafing_motor.writeMicroseconds(strafing_motor_speed);
+    front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+    front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+    rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   }
 }
 /****************************************************************
@@ -368,19 +362,19 @@ void ESCArm()
   #if MONITOR == 1
     Serial.println("Arming ESC...");
   #endif
-  left_axial_motor_speed = 90;
-  right_axial_motor_speed = 90;
-  strafing_motor_speed = 90;
-  front_left_vertical_motor_speed = 90;
-  front_right_vertical_motor_speed = 90;
-  rear_vertical_motor_speed = 90;
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
     
-  left_axial_motor.write(left_axial_motor_speed);
-  right_axial_motor.write(right_axial_motor_speed);
-  strafing_motor.write(strafing_motor_speed);
-  front_left_vertical_motor.write(front_left_vertical_motor_speed);
-  front_right_vertical_motor.write(front_right_vertical_motor_speed);
-  rear_vertical_motor.write(rear_vertical_motor_speed);
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   delay(20);
   #if MONITOR == 1
     Serial.println("Armed");
@@ -400,19 +394,19 @@ void Stop()
   #if MONITOR == 1
     Serial.println("Stopping");
   #endif
-  left_axial_motor_speed = 90;
-  right_axial_motor_speed = 90;
-  strafing_motor_speed = 90;
-  front_left_vertical_motor_speed = 90;
-  front_right_vertical_motor_speed = 90;
-  rear_vertical_motor_speed = 90;
+  left_axial_motor_speed = 1500;
+  right_axial_motor_speed = 1500;
+  strafing_motor_speed = 1500;
+  front_left_vertical_motor_speed = 1500;
+  front_right_vertical_motor_speed = 1500;
+  rear_vertical_motor_speed = 1500;
   
-  left_axial_motor.write(left_axial_motor_speed);
-  right_axial_motor.write(right_axial_motor_speed);
-  strafing_motor.write(strafing_motor_speed);
-  front_left_vertical_motor.write(front_left_vertical_motor_speed);
-  front_right_vertical_motor.write(front_right_vertical_motor_speed);
-  rear_vertical_motor.write(rear_vertical_motor_speed);
+  left_axial_motor.writeMicroseconds(left_axial_motor_speed);
+  right_axial_motor.writeMicroseconds(right_axial_motor_speed);
+  strafing_motor.writeMicroseconds(strafing_motor_speed);
+  front_left_vertical_motor.writeMicroseconds(front_left_vertical_motor_speed);
+  front_right_vertical_motor.writeMicroseconds(front_right_vertical_motor_speed);
+  rear_vertical_motor.writeMicroseconds(rear_vertical_motor_speed);
   delay(20);
   #if MONITOR == 1
     Serial.println("Stopped.");
@@ -591,7 +585,7 @@ void new_commands() {
       if (commands[1] == 1 && commands[0] == 0 && !armed && !water_leak) //If user wants it to arm, and there are no errors, and its not already armed
       {
         ESCArm();
-      } else if ((commands[1] == 0 && !water_leak) || commands[0] == 1) //if the user wants it to disarm
+      } else if (commands[1] == 0 && !water_leak ) //if the user wants it to disarm
       {
         Stop();
       } else if ( commands[0] == 1 || water_leak) //if there are errors
@@ -695,12 +689,12 @@ void new_IMU_data_received()
 void return_to_surface()
 {
   returning_to_surface = true;
-  left_axial_motor.write(90);
-  right_axial_motor.write(90);
-  strafing_motor.write(90);
-  front_left_vertical_motor.write(112);
-  front_right_vertical_motor.write(112);
-  rear_vertical_motor.write(135);
+  left_axial_motor.writeMicroseconds(1500);
+  right_axial_motor.writeMicroseconds(1500);
+  strafing_motor.writeMicroseconds(1500);
+  front_left_vertical_motor.writeMicroseconds(1625);
+  front_right_vertical_motor.writeMicroseconds(1625);
+  rear_vertical_motor.writeMicroseconds(1750);
 }
 /****************************************************************
   End Return to Surface Module
